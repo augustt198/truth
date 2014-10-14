@@ -1,21 +1,19 @@
-use std::io::File;
-
 fn is_alpha(c: char) -> bool {
     (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
 
 #[allow(dead_code)]
 struct StringReader<'a> {
-    pos:    uint,
-    source: &'a str,
+    pos:    int,
+    source: String,
     col:    uint,
     line:   uint
 }
 
 impl<'a> StringReader<'a> {
-    fn new(source: &'a str) -> StringReader<'a> {
+    fn new(source: String) -> StringReader<'a> {
         StringReader {
-            pos: 0,
+            pos: -1,
             line: 1,
             col: 0,
             source: source
@@ -23,8 +21,8 @@ impl<'a> StringReader<'a> {
     }
 
     fn peak(&mut self) -> Option<char> {
-        if self.pos + 1 < self.source.len() {
-            Some(self.source.char_at(self.pos + 1))
+        if self.pos + 1 < self.source.len() as int {
+            Some(self.source.as_slice().char_at((self.pos + 1) as uint))
         } else {
             None
         }
@@ -70,10 +68,9 @@ impl Lexer {
 
             else if is_alpha(c) { return self.next_ident(c)}
 
-            else if c == ' ' { continue }
+            else if c == ' ' || c == '\n' { continue }
             else { fail!("Unexpected character: {}", c) }
         }
-        fail!() // hm, this code should never execute
     }
 
     fn next_ident(&mut self, current: char) -> Token {
@@ -95,6 +92,7 @@ impl Lexer {
 }
 
 #[allow(dead_code)]
+#[deriving(Show)]
 enum Type {
     LParen,
     RParen,
@@ -117,5 +115,18 @@ struct Token {
 }
 
 fn main() {
+    for line in std::io::stdin().lines() {
+        if line.is_ok() {
+            let mut lexer = Lexer { reader: StringReader::new(line.unwrap()) };
 
+            loop {
+                let tok = lexer.next_token();
+                println!("{}", tok.token_type)
+                match tok.token_type {
+                    EOF => break,
+                    _ => {}
+                }
+            }
+        }
+    }
 }
