@@ -3,15 +3,15 @@ fn is_alpha(c: char) -> bool {
 }
 
 #[allow(dead_code)]
-struct StringReader<'a> {
+struct StringReader {
     pos:    int,
     source: String,
     col:    uint,
     line:   uint
 }
 
-impl<'a> StringReader<'a> {
-    fn new(source: String) -> StringReader<'a> {
+impl StringReader {
+    fn new(source: String) -> StringReader {
         StringReader {
             pos: -1,
             line: 1,
@@ -44,7 +44,7 @@ impl<'a> StringReader<'a> {
 }
 
 struct Lexer {
-    reader: StringReader<'static>
+    reader: StringReader
 }
 
 impl Lexer {
