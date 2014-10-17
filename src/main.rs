@@ -4,7 +4,7 @@ fn is_alpha(c: char) -> bool {
 
 #[allow(dead_code)]
 struct StringReader {
-    pos:    int,
+    pos:    uint,
     source: String,
     col:    uint,
     line:   uint
@@ -13,7 +13,7 @@ struct StringReader {
 impl StringReader {
     fn new(source: String) -> StringReader {
         StringReader {
-            pos: -1,
+            pos: 0,
             line: 1,
             col: 0,
             source: source
@@ -21,8 +21,8 @@ impl StringReader {
     }
 
     fn peak(&mut self) -> Option<char> {
-        if self.pos + 1 < self.source.len() as int {
-            Some(self.source.as_slice().char_at((self.pos + 1) as uint))
+        if self.pos < self.source.len() {
+            Some(self.source.as_slice().char_at(self.pos))
         } else {
             None
         }
