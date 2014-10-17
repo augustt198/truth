@@ -114,6 +114,44 @@ struct Token {
     line:       uint
 }
 
+struct Operation {
+    components: Vec<Component>,
+    ops: Vec<Token>
+}
+
+enum VarOrExpr {
+    Var(String),
+    Expr(Operation)
+}
+struct Component {
+    value: VarOrExpr,
+    negated: bool
+}
+
+struct Parser {
+    tokens: Vec<Token>
+}
+
+impl Parser {
+    fn new(lexer: &mut Lexer) -> Parser {
+        let mut tokens = vec!();
+        let mut token;
+        loop {
+            token = lexer.next_token();
+            match token.token_type {
+                EOF => {
+                    tokens.push(token);
+                    break
+                },
+                _   => {
+                    tokens.push(token);
+                }
+            }
+        }
+        Parser { tokens: tokens }
+    }
+}
+
 fn main() {
     for line in std::io::stdin().lines() {
         if line.is_ok() {
@@ -124,7 +162,7 @@ fn main() {
                 println!("{}", tok.token_type)
                 match tok.token_type {
                     EOF => break,
-                    _ => {}
+                    _   => {}
                 }
             }
         }
