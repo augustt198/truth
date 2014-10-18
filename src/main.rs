@@ -164,6 +164,24 @@ impl Operation {
 
         vars
     }
+
+    fn truth_table(&self) -> Vec<(HashMap<String, bool>, bool)> {
+        let mut result = Vec::new();
+
+
+        let vars = self.get_variables();
+        let tests = std::num::pow(2i, vars.len());
+
+        for num in range(0i, tests) {
+            let mut env = EnvironmentImpl { vars: HashMap::new() };
+            for pos in range(0u, vars.len()) {
+                env.vars.insert(vars[pos].clone(), ((num >> (vars.len() - 1 - pos)) & 1) == 1);
+            }
+            result.push((env.vars.clone(), self.eval(&env)));
+        }
+
+        result
+    }
 }
 
 #[deriving(Show)]
@@ -292,6 +310,20 @@ impl Environment for EnvironmentImpl {
     }
 }
 
+trait AsInt {
+    fn as_int(self) -> int;
+}
+
+impl AsInt for bool {
+    fn as_int(self) -> int {
+        if self {
+            1
+        } else {
+            0
+        }
+    }
+}
+
 fn main() {
     for line in std::io::stdin().lines() {
         if line.is_ok() {
@@ -300,9 +332,33 @@ fn main() {
             let env = EnvironmentImpl { vars: HashMap::new() };
             let op = parser.parse();
 
-            println!("> Parsed: {}", op);
+            let table = op.truth_table();
+            let mut vars = op.get_variables();
+
+            vars.sort_by(|a, b| a.cmp(b));
+
+            println!("> Truth table:")
+            for var in vars.iter() {
+                print!("{}    ", var);
+            }
+            print!("Result")
+            println!("\n");
+
+            for &(ref vars, ref res) in table.iter() {
+                let mut sorted = Vec::with_capacity(table.len());
+                for pair in vars.iter() {
+                    sorted.push(pair);
+                }
+                sorted.sort_by(|a, b| a.val0().cmp(b.val0()));
+                for &(ref name, ref val) in sorted.iter() {
+                    print!("{}    ", val.as_int());
+                }
+                print!("{}\n", res.as_int());
+            }
+
+            println!("> Parsed tree:\n{}", op);
             println!("> Variables: {}", op.get_variables());
-            println!("> Evaluated: {}", op.eval(&env));
+
         }
     }
 }
