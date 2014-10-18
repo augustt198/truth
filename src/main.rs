@@ -4,7 +4,6 @@ fn is_alpha(c: char) -> bool {
     (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
 
-#[allow(dead_code)]
 struct StringReader {
     pos:    uint,
     source: String,
@@ -93,7 +92,6 @@ impl Lexer {
     }
 }
 
-#[allow(dead_code)]
 #[deriving(Show)]
 #[deriving(Clone)]
 enum Type {
@@ -110,7 +108,6 @@ enum Type {
     EOF
 }
 
-#[allow(dead_code)]
 #[deriving(Clone)]
 #[deriving(Show)]
 struct Token {
