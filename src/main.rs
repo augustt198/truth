@@ -144,6 +144,26 @@ impl Operation {
 
         val
     }
+
+    fn get_variables(&self) -> Vec<String> {
+        let mut vars: Vec<String> = Vec::new();
+
+        for component in self.components.iter() {
+            match component.value {
+                Var(ref var) => {
+                    if !vars.contains(var) { vars.push(var.clone()) }
+                }
+                Expr(ref op) => {
+                    let other_vars = op.get_variables();
+                    for var in other_vars.iter() {
+                        if !vars.contains(var) { vars.push(var.clone()) }
+                    }
+                }
+            }
+        }
+
+        vars
+    }
 }
 
 #[deriving(Show)]
@@ -281,6 +301,7 @@ fn main() {
             let op = parser.parse();
 
             println!("> Parsed: {}", op);
+            println!("> Variables: {}", op.get_variables());
             println!("> Evaluated: {}", op.eval(&env));
         }
     }
