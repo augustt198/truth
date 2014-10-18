@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 fn is_alpha(c: char) -> bool {
     (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
@@ -123,6 +125,27 @@ struct Operation {
     ops: Vec<Token>
 }
 
+impl Operation {
+    fn eval(&self, env: &Environment) -> bool {
+        let mut val = false;
+        if self.components.len() > 0 {
+            val = self.components[0].eval(env);
+        }
+
+        for idx in range(1u, self.components.len()) {
+            let eval = self.components[idx].eval(env);
+            match self.ops[idx - 1].token_type {
+                And => val &= eval,
+                Or => val |= eval,
+                Xor => val ^= eval,
+                _ => fail!("Unexpected operation")
+            };
+        }
+
+        val
+    }
+}
+
 #[deriving(Show)]
 enum VarOrExpr {
     Var(String),
@@ -133,6 +156,17 @@ enum VarOrExpr {
 struct Component {
     value: VarOrExpr,
     negated: bool
+}
+
+impl Component {
+    fn eval(&self, env: &Environment) -> bool {
+        let mut val = match self.value {
+            Var(ref name) => env.get_variable(name.clone()),
+            Expr(ref op) => op.eval(env)
+        };
+        if self.negated { val = !val };
+        val
+    }
 }
 
 struct Parser {
@@ -170,9 +204,8 @@ impl Parser {
     fn parse(&mut self) -> Operation {
         let mut op = Operation { components: vec!(), ops: vec!() };
         
-        let component = op.components.push(self.component());
+        op.components.push(self.component());
         let mut token = self.next();
-        println!("(P1) token is {}", token);
 
         loop {
             match token.token_type {
@@ -185,7 +218,6 @@ impl Parser {
                 }
             };
             token = self.next();
-            println!("(PL) token is {}", token);
         }
         self.back();
         
@@ -197,8 +229,6 @@ impl Parser {
         let mut neg = false;
         let mut val: VarOrExpr;
         
-        println!("(C1) token is {}", token);
-
         loop {
             match token.token_type {
                 Not => neg = !neg,
@@ -218,7 +248,6 @@ impl Parser {
                 _ => { fail!("Unexpected token"); }
             }
             token = self.next();
-            println!("(CL) token is {}", token);
         }
 
         Component { value: val, negated: neg }
@@ -226,12 +255,33 @@ impl Parser {
     
 }
 
+trait Environment {
+    fn get_variable(&self, name: String) -> bool;
+}
+
+struct EnvironmentImpl {
+    vars: HashMap<String, bool>
+}
+
+impl Environment for EnvironmentImpl {
+    fn get_variable(&self, name: String) -> bool {
+        match self.vars.find(&name) {
+            Some(var) => *var,
+            None => false
+        }
+    }
+}
+
 fn main() {
     for line in std::io::stdin().lines() {
         if line.is_ok() {
             let mut lexer = Lexer { reader: StringReader::new(line.unwrap()) };
             let mut parser = Parser::new(&mut lexer);
-            println!("Parsed:\n{}", parser.parse());
+            let env = EnvironmentImpl { vars: HashMap::new() };
+            let op = parser.parse();
+
+            println!("> Parsed: {}", op);
+            println!("> Evaluated: {}", op.eval(&env));
         }
     }
 }
