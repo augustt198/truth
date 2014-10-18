@@ -49,7 +49,7 @@ struct Lexer {
 
 impl Lexer {
     fn tok(&self, token_type: Type) -> Token {
-        Token { token_type: token_type, col: 0u, line: 0u }
+        Token { token_type: token_type, col: self.reader.col, line: self.reader.line }
     }
 
     fn next_token(&mut self) -> Token {
@@ -93,6 +93,7 @@ impl Lexer {
 
 #[allow(dead_code)]
 #[deriving(Show)]
+#[deriving(Clone)]
 enum Type {
     LParen,
     RParen,
@@ -108,28 +109,35 @@ enum Type {
 }
 
 #[allow(dead_code)]
+#[deriving(Clone)]
+#[deriving(Show)]
 struct Token {
     token_type: Type,
     col:        uint,
     line:       uint
 }
 
+#[deriving(Show)]
 struct Operation {
     components: Vec<Component>,
     ops: Vec<Token>
 }
 
+#[deriving(Show)]
 enum VarOrExpr {
     Var(String),
     Expr(Operation)
 }
+
+#[deriving(Show)]
 struct Component {
     value: VarOrExpr,
     negated: bool
 }
 
 struct Parser {
-    tokens: Vec<Token>
+    tokens: Vec<Token>,
+    pos: uint
 }
 
 impl Parser {
@@ -148,23 +156,82 @@ impl Parser {
                 }
             }
         }
-        Parser { tokens: tokens }
+        Parser { tokens: tokens, pos: 0 }
     }
+    
+    fn next(&mut self) -> Token {
+        let tok = self.tokens[self.pos].clone();
+        self.pos += 1;
+        tok
+    }
+    
+    fn back(&mut self) { self.pos -= 1; }
+    
+    fn parse(&mut self) -> Operation {
+        let mut op = Operation { components: vec!(), ops: vec!() };
+        
+        let component = op.components.push(self.component());
+        let mut token = self.next();
+        println!("(P1) token is {}", token);
+
+        loop {
+            match token.token_type {
+                Or | Xor | And => {
+                    op.ops.push(token.clone());
+                    op.components.push(self.component());
+                },
+                _ => {
+                    break;
+                }
+            };
+            token = self.next();
+            println!("(PL) token is {}", token);
+        }
+        self.back();
+        
+        op
+    }
+    
+    fn component(&mut self) -> Component {
+        let mut token = self.next();
+        let mut neg = false;
+        let mut val: VarOrExpr;
+        
+        println!("(C1) token is {}", token);
+
+        loop {
+            match token.token_type {
+                Not => neg = !neg,
+                LParen => {
+                    val = Expr(self.parse());
+                    let check = self.next();
+                    match check.token_type {
+                        RParen => {},
+                        _ => { fail!("Unexpected token: {}", check); }
+                    };
+                    break;
+                },
+                Ident(name) => {
+                    val = Var(name);
+                    break;
+                },
+                _ => { fail!("Unexpected token"); }
+            }
+            token = self.next();
+            println!("(CL) token is {}", token);
+        }
+
+        Component { value: val, negated: neg }
+    }
+    
 }
 
 fn main() {
     for line in std::io::stdin().lines() {
         if line.is_ok() {
             let mut lexer = Lexer { reader: StringReader::new(line.unwrap()) };
-
-            loop {
-                let tok = lexer.next_token();
-                println!("{}", tok.token_type)
-                match tok.token_type {
-                    EOF => break,
-                    _   => {}
-                }
-            }
+            let mut parser = Parser::new(&mut lexer);
+            println!("Parsed:\n{}", parser.parse());
         }
     }
 }
