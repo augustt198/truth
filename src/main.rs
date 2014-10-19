@@ -321,6 +321,13 @@ impl AsInt for bool {
     }
 }
 
+#[allow(unused_variable)]
+fn repeat_char(c: char, times: uint) -> String {
+    let mut string = String::new();
+    for i in range(1u, times) { string.push(c) }
+    string
+}
+
 fn main() {
     for line in std::io::stdin().lines() {
         if line.is_ok() {
@@ -348,7 +355,7 @@ fn main() {
                 }
                 sorted.sort_by(|a, b| a.val0().cmp(b.val0()));
                 for &(ref name, ref val) in sorted.iter() {
-                    print!("{}    ", val.as_int());
+                    print!("{}{}    ", val.as_int(), repeat_char(' ', name.len()));
                 }
                 print!("{}\n", res.as_int());
             }
