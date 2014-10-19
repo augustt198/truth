@@ -135,7 +135,7 @@ impl Operation {
                 And => val &= eval,
                 Or => val |= eval,
                 Xor => val ^= eval,
-                _ => fail!("Unexpected operation")
+                ref other => fail!("Unexpected operation: {}", other)
             };
         }
 
@@ -269,10 +269,9 @@ impl Parser {
                 Not => neg = !neg,
                 LParen => {
                     val = Expr(self.parse());
-                    let check = self.next();
-                    match check.token_type {
-                        RParen => {},
-                        _ => { fail!("Unexpected token: {}", check); }
+                    match self.next().token_type {
+                        RParen  => {},
+                        other   => { fail!("Unexpected token: {}", other); }
                     };
                     break;
                 },
@@ -280,7 +279,7 @@ impl Parser {
                     val = Var(name);
                     break;
                 },
-                _ => { fail!("Unexpected token"); }
+                other => { fail!("Unexpected token: {}", other); }
             }
             token = self.next();
         }
