@@ -62,9 +62,9 @@ impl Lexer {
 
             if      c == '(' { return self.tok(LParen) }
             else if c == ')' { return self.tok(RParen) }
-            else if c == '&' { return self.tok(And) }
-            else if c == '|' { return self.tok(Or) }
-            else if c == '!' { return self.tok(Not) }
+            else if c == '&' || c == '*' { return self.tok(And) }
+            else if c == '|' || c == '+' { return self.tok(Or) }
+            else if c == '!' || c == '~' { return self.tok(Not) }
             else if c == '^' { return self.tok(Xor) }
 
             else if is_alpha(c) { return self.next_ident(c)}
