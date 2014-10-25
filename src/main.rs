@@ -165,7 +165,6 @@ impl Operation {
     fn truth_table(&self) -> Vec<(HashMap<String, bool>, bool)> {
         let mut result = Vec::new();
 
-
         let vars = self.get_variables();
         let tests = std::num::pow(2i, vars.len());
 
@@ -306,20 +305,6 @@ impl Environment for EnvironmentImpl {
     }
 }
 
-trait AsInt {
-    fn as_int(self) -> int;
-}
-
-impl AsInt for bool {
-    fn as_int(self) -> int {
-        if self {
-            1
-        } else {
-            0
-        }
-    }
-}
-
 #[allow(unused_variable)]
 fn repeat_char(c: char, times: uint) -> String {
     let mut string = String::new();
@@ -354,9 +339,9 @@ fn main() {
                 }
                 sorted.sort_by(|a, b| a.val0().cmp(b.val0()));
                 for &(ref name, ref val) in sorted.iter() {
-                    print!("{}{}    ", val.as_int(), repeat_char(' ', name.len()));
+                    print!("{}{}    ", **val as u8, repeat_char(' ', name.len()));
                 }
-                print!("{}\n", res.as_int());
+                print!("{}\n", *res as u8);
             }
 
             println!("> Parsed tree:\n{}", op);
