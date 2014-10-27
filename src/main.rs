@@ -1,7 +1,13 @@
 use std::collections::HashMap;
 
-fn is_alpha(c: char) -> bool {
-    (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+trait IsAlpha {
+    fn is_alpha(self) -> bool;
+}
+
+impl IsAlpha for char {
+    fn is_alpha(self) -> bool {
+        (self >= 'a' && self <= 'z') || (self >= 'A' && self <= 'Z')
+    }    
 }
 
 struct StringReader {
@@ -67,7 +73,7 @@ impl Lexer {
             else if c == '!' || c == '~' { return self.tok(Not) }
             else if c == '^' { return self.tok(Xor) }
 
-            else if is_alpha(c) { return self.next_ident(c)}
+            else if c.is_alpha() { return self.next_ident(c)}
 
             else if c == ' ' || c == '\n' { continue }
             else { fail!("Unexpected character: {}", c) }
@@ -80,7 +86,7 @@ impl Lexer {
 
         loop {
             let peak = self.reader.peak();
-            if peak.is_some() && is_alpha(peak.unwrap()) {
+            if peak.is_some() && peak.unwrap().is_alpha() {
                 string.push(peak.unwrap());
                 self.reader.read();
             } else {
@@ -317,7 +323,6 @@ fn main() {
         if line.is_ok() {
             let mut lexer = Lexer { reader: StringReader::new(line.unwrap()) };
             let mut parser = Parser::new(&mut lexer);
-            let env = EnvironmentImpl { vars: HashMap::new() };
             let op = parser.parse();
 
             let table = op.truth_table();
