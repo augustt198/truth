@@ -53,12 +53,6 @@ impl StringReader {
     }
 }
 
-struct ErrorPosition {
-    msg:        String,
-    line:       uint,
-    col_range:  RangeInclusive<uint>
-}
-
 struct Lexer {
     reader: StringReader
 }
@@ -265,17 +259,17 @@ impl Parser {
     
     fn back(&mut self) { self.pos -= 1; }
     
-    fn parse(&mut self) -> Operation {
+    fn parse(&mut self) -> Result<Operation, ErrorPosition> {
         let mut op = Operation { components: vec!(), ops: vec!() };
         
-        op.components.push(self.component());
+        op.components.push(try!(self.component()));
         let mut token = self.next();
 
         loop {
             match token.token_type {
                 Or | Xor | And => {
                     op.ops.push(token.clone());
-                    op.components.push(self.component());
+                    op.components.push(try!(self.component()));
                 },
                 _ => {
                     break;
@@ -285,10 +279,10 @@ impl Parser {
         }
         self.back();
         
-        op
+        Ok(op)
     }
     
-    fn component(&mut self) -> Component {
+    fn component(&mut self) -> Result<Component, ErrorPosition> {
         let mut token = self.next();
         let mut neg = false;
         let mut val: VarOrExpr;
@@ -297,10 +291,17 @@ impl Parser {
             match token.token_type {
                 Not => neg = !neg,
                 LParen => {
-                    val = Expr(self.parse());
-                    match self.next().token_type {
+                    val = Expr(try!(self.parse()));
+                    let next = self.next();
+                    match next.token_type {
                         RParen  => {},
-                        other   => { fail!("Unexpected token: {}", other); }
+                        other   => {
+                            return Err(ErrorPosition {
+                                msg: format!("Unexpected token: {}", other).to_string(),
+                                line: next.line,
+                                col_range: range_inclusive(next.col, next.col)
+                            })
+                        }
                     };
                     break;
                 },
@@ -308,12 +309,18 @@ impl Parser {
                     val = Var(name);
                     break;
                 },
-                other => { fail!("Unexpected token: {}", other); }
+                other => {
+                    return Err(ErrorPosition {
+                        msg: format!("Unexpected token: {}", other).to_string(),
+                        line: token.line,
+                        col_range: range_inclusive(token.col, token.col)
+                    })
+                }
             }
             token = self.next();
         }
 
-        Component { value: val, negated: neg }
+        Ok(Component { value: val, negated: neg })
     }
     
 }
@@ -346,9 +353,11 @@ fn main() {
     for line in std::io::stdin().lines() {
         if line.is_ok() {
             let eval = parse_expr(line.unwrap());
-            
-            if eval.is_err() {
-                println!("error");
+            match eval {
+                Err(err) => {
+                    println!("Error: {}", err.msg)
+                },
+                _ => {}
             }
         }
     }
@@ -357,7 +366,7 @@ fn main() {
 fn parse_expr(src: String) -> Result<(), ErrorPosition> {
     let mut lexer  = Lexer { reader: StringReader::new(src) };
     let mut parser = try!(Parser::new(&mut lexer));
-    let root = parser.parse();
+    let root = try!(parser.parse());
 
     let table = try!(root.truth_table());
     let mut vars = root.get_variables();
@@ -381,6 +390,6 @@ fn parse_expr(src: String) -> Result<(), ErrorPosition> {
     }
     
     println!("> Parsed tree:\n{}", root);
-    println!("> Variables: {}", root.get_variables());
+    println!("> Variables: {}", vars);
     Ok(())
 }
