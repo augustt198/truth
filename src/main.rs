@@ -10,6 +10,19 @@ impl IsAlpha for char {
     }    
 }
 
+trait RepeatChar {
+    fn repeat(self, times: uint) -> String;
+}
+
+impl RepeatChar for char {
+    fn repeat(self, times: uint) -> String {
+        let mut string = String::new();
+        let i = 0u;
+        while i < times { string.push(self) }
+        string
+    }
+}
+
 struct StringReader {
     pos:    uint,
     source: String,
@@ -172,7 +185,7 @@ impl Operation {
                         self.ops[idx - 1].clone(),
                     ))
                 }
-            };
+            }
         }
 
         Ok(val)
@@ -351,13 +364,6 @@ impl Environment for EnvironmentImpl {
     }
 }
 
-#[allow(unused_variable)]
-fn repeat_char(c: char, times: uint) -> String {
-    let mut string = String::new();
-    for i in range(1u, times) { string.push(c) }
-    string
-}
-
 fn main() {
     for line in std::io::stdin().lines() {
         if line.is_ok() {
@@ -393,7 +399,7 @@ fn parse_expr(src: String) -> Result<(), ErrorPosition> {
         for pair in vars.iter() { sorted.push(pair); }
         sorted.sort_by(|a, b| a.val0().cmp(b.val0()));
         for &(ref name, ref val) in sorted.iter() {
-            print!("{}{}    ", **val as u8, repeat_char(' ', name.len()));
+            print!("{}{}    ", **val as u8, ' '.repeat(name.len()));
         }
         print!("{}\n", *res as u8);    
     }
