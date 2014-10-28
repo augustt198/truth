@@ -1,5 +1,8 @@
 use std::collections::HashMap;
 
+use std::iter::RangeInclusive;
+use std::iter::range_inclusive;
+
 trait IsAlpha {
     fn is_alpha(self) -> bool;
 }
@@ -50,6 +53,12 @@ impl StringReader {
     }
 }
 
+struct ErrorPosition {
+    msg:        String,
+    line:       uint,
+    col_range:  RangeInclusive<uint>
+}
+
 struct Lexer {
     reader: StringReader
 }
@@ -59,24 +68,31 @@ impl Lexer {
         Token { token_type: token_type, col: self.reader.col, line: self.reader.line }
     }
 
-    fn next_token(&mut self) -> Token {
+    fn next_token(&mut self) -> Result<Token, ErrorPosition> {
         loop {
             let c = match self.reader.read() {
                 Some(c) => c,
-                None => return self.tok(EOF)
+                None => return Ok(self.tok(EOF))
             };
 
-            if      c == '(' { return self.tok(LParen) }
-            else if c == ')' { return self.tok(RParen) }
-            else if c == '&' || c == '*' { return self.tok(And) }
-            else if c == '|' || c == '+' { return self.tok(Or) }
-            else if c == '!' || c == '~' { return self.tok(Not) }
-            else if c == '^' { return self.tok(Xor) }
+            if      c == '(' { return Ok(self.tok(LParen)) }
+            else if c == ')' { return Ok(self.tok(RParen)) }
+            else if c == '&' || c == '*' { return Ok(self.tok(And)) }
+            else if c == '|' || c == '+' { return Ok(self.tok(Or)) }
+            else if c == '!' || c == '~' { return Ok(self.tok(Not)) }
+            else if c == '^' { return Ok(self.tok(Xor)) }
 
-            else if c.is_alpha() { return self.next_ident(c)}
+            else if c.is_alpha() { return Ok(self.next_ident(c)) }
 
             else if c == ' ' || c == '\n' { continue }
-            else { fail!("Unexpected character: {}", c) }
+            else {
+                return Err(ErrorPosition {
+                    msg:        format!("Unexpected character: {}", c).to_string(),
+                    line:       self.reader.line,
+                    col_range:  range_inclusive(self.reader.col, self.reader.col)    
+                })
+                
+            }
         }
     }
 
@@ -129,23 +145,30 @@ struct Operation {
 }
 
 impl Operation {
-    fn eval(&self, env: &Environment) -> bool {
+    fn eval(&self, env: &Environment) -> Result<bool, ErrorPosition> {
         let mut val = false;
         if self.components.len() > 0 {
-            val = self.components[0].eval(env);
+            val = try!(self.components[0].eval(env));
         }
 
         for idx in range(1u, self.components.len()) {
-            let eval = self.components[idx].eval(env);
+            let eval = try!(self.components[idx].eval(env));
+            //let token = self.ops[idx - 1];
             match self.ops[idx - 1].token_type {
                 And => val &= eval,
                 Or => val |= eval,
                 Xor => val ^= eval,
-                ref other => fail!("Unexpected operation: {}", other)
+                ref other => {
+                    return Err(ErrorPosition {
+                        msg:        format!("Unexpected operation: {}", other).to_string(),
+                        line:       self.ops[idx - 1].line,
+                        col_range:  range_inclusive(self.ops[idx - 1].col, self.ops[idx - 1].col)
+                    })
+                }
             };
         }
 
-        val
+        Ok(val)
     }
 
     fn get_variables(&self) -> Vec<String> {
@@ -168,7 +191,8 @@ impl Operation {
         vars
     }
 
-    fn truth_table(&self) -> Vec<(HashMap<String, bool>, bool)> {
+    // TODO make structure to clean up this return type
+    fn truth_table(&self) -> Result<Vec<(HashMap<String, bool>, bool)>, ErrorPosition> {
         let mut result = Vec::new();
 
         let vars = self.get_variables();
@@ -179,10 +203,10 @@ impl Operation {
             for pos in range(0u, vars.len()) {
                 env.vars.insert(vars[pos].clone(), ((num >> (vars.len() - 1 - pos)) & 1) == 1);
             }
-            result.push((env.vars.clone(), self.eval(&env)));
+            result.push((env.vars.clone(), try!(self.eval(&env))));
         }
 
-        result
+        Ok(result)
     }
 }
 
@@ -199,13 +223,13 @@ struct Component {
 }
 
 impl Component {
-    fn eval(&self, env: &Environment) -> bool {
+    fn eval(&self, env: &Environment) -> Result<bool, ErrorPosition> {
         let mut val = match self.value {
             Var(ref name) => env.get_variable(name.clone()),
-            Expr(ref op) => op.eval(env)
+            Expr(ref op) => try!(op.eval(env))
         };
         if self.negated { val = !val };
-        val
+        Ok(val)
     }
 }
 
@@ -215,11 +239,11 @@ struct Parser {
 }
 
 impl Parser {
-    fn new(lexer: &mut Lexer) -> Parser {
+    fn new(lexer: &mut Lexer) -> Result<Parser, ErrorPosition> {
         let mut tokens = vec!();
         let mut token;
         loop {
-            token = lexer.next_token();
+            token = try!(lexer.next_token());
             match token.token_type {
                 EOF => {
                     tokens.push(token);
@@ -230,7 +254,7 @@ impl Parser {
                 }
             }
         }
-        Parser { tokens: tokens, pos: 0 }
+        Ok(Parser { tokens: tokens, pos: 0 })
     }
     
     fn next(&mut self) -> Token {
@@ -321,37 +345,42 @@ fn repeat_char(c: char, times: uint) -> String {
 fn main() {
     for line in std::io::stdin().lines() {
         if line.is_ok() {
-            let mut lexer = Lexer { reader: StringReader::new(line.unwrap()) };
-            let mut parser = Parser::new(&mut lexer);
-            let op = parser.parse();
-
-            let table = op.truth_table();
-            let mut vars = op.get_variables();
-
-            vars.sort_by(|a, b| a.cmp(b));
-
-            println!("> Truth table:")
-            for var in vars.iter() {
-                print!("{}    ", var);
+            let eval = parse_expr(line.unwrap());
+            
+            if eval.is_err() {
+                println!("error");
             }
-            print!("Result")
-            println!("\n");
-
-            for &(ref vars, ref res) in table.iter() {
-                let mut sorted = Vec::with_capacity(table.len());
-                for pair in vars.iter() {
-                    sorted.push(pair);
-                }
-                sorted.sort_by(|a, b| a.val0().cmp(b.val0()));
-                for &(ref name, ref val) in sorted.iter() {
-                    print!("{}{}    ", **val as u8, repeat_char(' ', name.len()));
-                }
-                print!("{}\n", *res as u8);
-            }
-
-            println!("> Parsed tree:\n{}", op);
-            println!("> Variables: {}", op.get_variables());
-
         }
     }
+}
+
+fn parse_expr(src: String) -> Result<(), ErrorPosition> {
+    let mut lexer  = Lexer { reader: StringReader::new(src) };
+    let mut parser = try!(Parser::new(&mut lexer));
+    let root = parser.parse();
+
+    let table = try!(root.truth_table());
+    let mut vars = root.get_variables();
+
+    vars.sort_by(|a, b| a.cmp(b));
+
+    println!("> Truth table:");
+    for var in vars.iter() {
+        print!("{}    ", var);
+    }
+    print!("Result\n\n");
+
+    for &(ref vars, ref res) in table.iter() {
+        let mut sorted = Vec::with_capacity(table.len());
+        for pair in vars.iter() { sorted.push(pair); }
+        sorted.sort_by(|a, b| a.val0().cmp(b.val0()));
+        for &(ref name, ref val) in sorted.iter() {
+            print!("{}{}    ", **val as u8, repeat_char(' ', name.len()));
+        }
+        print!("{}\n", *res as u8);    
+    }
+    
+    println!("> Parsed tree:\n{}", root);
+    println!("> Variables: {}", root.get_variables());
+    Ok(())
 }
