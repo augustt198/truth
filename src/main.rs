@@ -53,6 +53,12 @@ impl StringReader {
     }
 }
 
+struct ErrorPosition {
+    msg:        String,
+    line:       uint,
+    col_range:  RangeInclusive<uint>
+}
+
 struct Lexer {
     reader: StringReader
 }
