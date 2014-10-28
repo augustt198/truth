@@ -1,8 +1,5 @@
 use std::collections::HashMap;
 
-use std::iter::RangeInclusive;
-use std::iter::range_inclusive;
-
 trait IsAlpha {
     fn is_alpha(self) -> bool;
 }
@@ -53,10 +50,21 @@ impl StringReader {
     }
 }
 
+#[deriving(Show)]
 struct ErrorPosition {
     msg:        String,
     line:       uint,
-    col_range:  RangeInclusive<uint>
+    col_range:  (uint, uint)
+}
+
+impl ErrorPosition {
+    fn from_token(msg: String, tok: Token) -> ErrorPosition {
+        ErrorPosition {
+            msg:        msg,
+            line:       tok.line,
+            col_range:  (tok.col, tok.col)
+        }
+    }
 }
 
 struct Lexer {
@@ -89,7 +97,7 @@ impl Lexer {
                 return Err(ErrorPosition {
                     msg:        format!("Unexpected character: {}", c).to_string(),
                     line:       self.reader.line,
-                    col_range:  range_inclusive(self.reader.col, self.reader.col)    
+                    col_range:  (self.reader.col, self.reader.col)    
                 })
                 
             }
@@ -159,11 +167,10 @@ impl Operation {
                 Or => val |= eval,
                 Xor => val ^= eval,
                 ref other => {
-                    return Err(ErrorPosition {
-                        msg:        format!("Unexpected operation: {}", other).to_string(),
-                        line:       self.ops[idx - 1].line,
-                        col_range:  range_inclusive(self.ops[idx - 1].col, self.ops[idx - 1].col)
-                    })
+                    return Err(ErrorPosition::from_token(
+                        format!("Unexpected operation: {}", other),
+                        self.ops[idx - 1].clone(),
+                    ))
                 }
             };
         }
@@ -301,12 +308,10 @@ impl Parser {
                     let next = self.next();
                     match next.token_type {
                         RParen  => {},
-                        other   => {
-                            return Err(ErrorPosition {
-                                msg: format!("Unexpected token: {}", other).to_string(),
-                                line: next.line,
-                                col_range: range_inclusive(next.col, next.col)
-                            })
+                        ref other   => {
+                            return Err(ErrorPosition::from_token(
+                                format!("Unexpected token: {}", other), next.clone()
+                            ))
                         }
                     };
                     break;
@@ -315,12 +320,10 @@ impl Parser {
                     val = Var(name);
                     break;
                 },
-                other => {
-                    return Err(ErrorPosition {
-                        msg: format!("Unexpected token: {}", other).to_string(),
-                        line: token.line,
-                        col_range: range_inclusive(token.col, token.col)
-                    })
+                ref other => {
+                    return Err(ErrorPosition::from_token(
+                        format!("Unexpected token: {}", other), token.clone()
+                    ))
                 }
             }
             token = self.next();
