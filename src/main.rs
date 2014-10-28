@@ -17,8 +17,8 @@ trait RepeatChar {
 impl RepeatChar for char {
     fn repeat(self, times: uint) -> String {
         let mut string = String::new();
-        let i = 0u;
-        while i < times { string.push(self) }
+        let mut i = 0u;
+        while i < times { string.push(self); i += 1 }
         string
     }
 }
@@ -367,10 +367,15 @@ impl Environment for EnvironmentImpl {
 fn main() {
     for line in std::io::stdin().lines() {
         if line.is_ok() {
-            let eval = parse_expr(line.unwrap());
+            let mut string = line.unwrap();
+            string.pop();
+            let eval = parse_expr(string);
             match eval {
                 Err(err) => {
-                    println!("Error: {}", err.msg)
+                    let rng = err.col_range;
+                    print!("{}", '~'.repeat(rng.val0() - 1));
+                    print!("{}\n", '^'.repeat(rng.val1() - rng.val0() + 1));
+                    println!("Error: \"{}\" at column {}, line {}", err.msg, rng.val0(), err.line);
                 },
                 _ => {}
             }
