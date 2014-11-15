@@ -357,7 +357,7 @@ struct EnvironmentImpl {
 
 impl Environment for EnvironmentImpl {
     fn get_variable(&self, name: String) -> bool {
-        match self.vars.find(&name) {
+        match self.vars.get(&name) {
             Some(var) => *var,
             None => false
         }
