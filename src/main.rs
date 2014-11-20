@@ -93,15 +93,15 @@ impl Lexer {
         loop {
             let c = match self.reader.read() {
                 Some(c) => c,
-                None => return Ok(self.tok(EOF))
+                None => return Ok(self.tok(Type::EOF))
             };
 
-            if      c == '(' { return Ok(self.tok(LParen)) }
-            else if c == ')' { return Ok(self.tok(RParen)) }
-            else if c == '&' || c == '*' { return Ok(self.tok(And)) }
-            else if c == '|' || c == '+' { return Ok(self.tok(Or)) }
-            else if c == '!' || c == '~' { return Ok(self.tok(Not)) }
-            else if c == '^' { return Ok(self.tok(Xor)) }
+            if      c == '(' { return Ok(self.tok(Type::LParen)) }
+            else if c == ')' { return Ok(self.tok(Type::RParen)) }
+            else if c == '&' || c == '*' { return Ok(self.tok(Type::And)) }
+            else if c == '|' || c == '+' { return Ok(self.tok(Type::Or)) }
+            else if c == '!' || c == '~' { return Ok(self.tok(Type::Not)) }
+            else if c == '^' { return Ok(self.tok(Type::Xor)) }
 
             else if c.is_alpha() { return Ok(self.next_ident(c)) }
 
@@ -131,7 +131,7 @@ impl Lexer {
             }
         }
         
-        self.tok(Ident(string))
+        self.tok(Type::Ident(string))
     }
 }
 
@@ -176,9 +176,9 @@ impl Operation {
             let eval = try!(self.components[idx].eval(env));
             //let token = self.ops[idx - 1];
             match self.ops[idx - 1].token_type {
-                And => val &= eval,
-                Or => val |= eval,
-                Xor => val ^= eval,
+                Type::And => val &= eval,
+                Type::Or => val |= eval,
+                Type::Xor => val ^= eval,
                 ref other => {
                     return Err(ErrorPosition::from_token(
                         format!("Unexpected operation: {}", other),
@@ -196,10 +196,10 @@ impl Operation {
 
         for component in self.components.iter() {
             match component.value {
-                Var(ref var) => {
+                VarOrExpr::Var(ref var) => {
                     if !vars.contains(var) { vars.push(var.clone()) }
                 }
-                Expr(ref op) => {
+                VarOrExpr::Expr(ref op) => {
                     let other_vars = op.get_variables();
                     for var in other_vars.iter() {
                         if !vars.contains(var) { vars.push(var.clone()) }
@@ -245,8 +245,8 @@ struct Component {
 impl Component {
     fn eval(&self, env: &Environment) -> Result<bool, ErrorPosition> {
         let mut val = match self.value {
-            Var(ref name) => env.get_variable(name.clone()),
-            Expr(ref op) => try!(op.eval(env))
+            VarOrExpr::Var(ref name) => env.get_variable(name.clone()),
+            VarOrExpr::Expr(ref op) => try!(op.eval(env))
         };
         if self.negated { val = !val };
         Ok(val)
@@ -265,7 +265,7 @@ impl Parser {
         loop {
             token = try!(lexer.next_token());
             match token.token_type {
-                EOF => {
+                Type::EOF => {
                     tokens.push(token);
                     break
                 },
@@ -293,7 +293,7 @@ impl Parser {
 
         loop {
             match token.token_type {
-                Or | Xor | And => {
+                Type::Or | Type::Xor | Type::And => {
                     op.ops.push(token.clone());
                     op.components.push(try!(self.component()));
                 },
@@ -315,12 +315,12 @@ impl Parser {
         
         loop {
             match token.token_type {
-                Not => neg = !neg,
-                LParen => {
-                    val = Expr(try!(self.parse()));
+                Type::Not => neg = !neg,
+                Type::LParen => {
+                    val = VarOrExpr::Expr(try!(self.parse()));
                     let next = self.next();
                     match next.token_type {
-                        RParen  => {},
+                        Type::RParen  => {},
                         ref other   => {
                             return Err(ErrorPosition::from_token(
                                 format!("Unexpected token: {}", other), next.clone()
@@ -329,8 +329,8 @@ impl Parser {
                     };
                     break;
                 },
-                Ident(name) => {
-                    val = Var(name);
+                Type::Ident(name) => {
+                    val = VarOrExpr::Var(name);
                     break;
                 },
                 ref other => {
