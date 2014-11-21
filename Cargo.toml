@@ -1,5 +1,8 @@
 [package]
 
-name = "truthtable"
+name = "truth"
 version = "0.0.1"
 authors = ["August <augustt198@gmail.com>"]
+
+description = "A boolean expression parser and evaluator"
+license = "MIT"
