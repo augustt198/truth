@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use std::num::Int;
+
 trait IsAlpha {
     fn is_alpha(self) -> bool;
 }
@@ -216,7 +218,7 @@ impl Operation {
         let mut result = Vec::new();
 
         let vars = self.get_variables();
-        let tests = std::num::pow(2i, vars.len());
+        let tests = 2i.pow(vars.len());
 
         for num in range(0i, tests) {
             let mut env = EnvironmentImpl { vars: HashMap::new() };
